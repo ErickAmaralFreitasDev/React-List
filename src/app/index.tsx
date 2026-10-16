@@ -1,98 +1,54 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Text, View, TouchableOpacity, FlatList } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import GestorDados from '../services/GestorDados';
+import ProdutoItem from '../components/ProdutoItem';
+import { Produto } from '../components/Produto';
+import { styles } from '../styles/CommonStyles';
+import ProdutoForm from './ProdutoForm';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function ProdutoLista() {
+  const gestor = new GestorDados();
+  const [produtos, setProdutos] = useState<Produto[]>([]);
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  // useFocusEffect substitui o useIsFocused no Expo Router
+  useFocusEffect(
+    useCallback(() => {
+      gestor.obterTodos().then((objs) => setProdutos(objs));
+    }, [])
+  );
+
+  const myKeyExtractor = (item: Produto) => {
+    return item.codigo.toString();
+  };
+
+  const excluirProduto = async (codigo: number) => {
+    await gestor.remover(codigo);
+    const objs = await gestor.obterTodos();
+    setProdutos(objs);
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push('/ProdutoForm')}
+      >
+        <Text style={styles.buttonTextBig}>Novo Produto</Text>
+      </TouchableOpacity>
+
+      <FlatList
+        style={styles.scrollContainer}
+        data={produtos}
+        contentContainerStyle={styles.itemsContainer}
+        keyExtractor={myKeyExtractor}
+        renderItem={({ item }) => (
+          <ProdutoItem
+            onDelete={() => excluirProduto(item.codigo)}
+            produto={item}
+          />
+        )}
+      />
+    </View>
   );
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
