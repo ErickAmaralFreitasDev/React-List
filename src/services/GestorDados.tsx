@@ -1,58 +1,46 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// src/services/GestorDados.ts
+import { db } from './DatabaseInstance';
 import { Produto } from '../components/Produto';
 
-const salvarProduto = async (key: string, value: any) => {
-  try {
-    const jsonValue = JSON.stringify(value);
-    await AsyncStorage.setItem(key, jsonValue);
-  } catch (e) {}
-};
+const sqlCreate =
+  'CREATE TABLE IF NOT EXISTS PRODUTO(' +
+  'CODIGO INTEGER PRIMARY KEY, ' +
+  'NOME VARCHAR(20), QUANTIDADE INTEGER)';
 
-const removerProduto = async (key: string) => {
-  try {
-    await AsyncStorage.removeItem(key);
-  } catch (e) {}
-};
+const sqlInsert =
+  'INSERT INTO PRODUTO (CODIGO, NOME, QUANTIDADE) VALUES (?,?,?)';
 
-const obterProdutosJSON = async (): Promise<readonly [string, string | null][]> => {
-  try {
-    const keys: readonly string[] = await AsyncStorage.getAllKeys();
-    return await AsyncStorage.multiGet(keys);
-  } catch (e) {
-    return [];
-  }
-};
-
-const obterProdutos = async (): Promise<Array<Produto>> => {
-  try {
-    const objetos: Array<Produto> = [];
-    const objJSON = await obterProdutosJSON();
-    if (objJSON != null && objJSON.length > 0) {
-      objJSON.forEach((element) => {
-        if (element[1] != null) {
-          const produto: Produto = JSON.parse(element[1]);
-          objetos.push(produto);
-        }
-      });
-    }
-    return objetos;
-  } catch (e) {
-    return [];
-  }
-};
+const sqlDelete = 'DELETE FROM PRODUTO WHERE CODIGO=?';
+const sqlSelect = 'SELECT * FROM PRODUTO';
 
 class GestorDados {
-  public async remover(chave: number) {
-    await removerProduto(chave.toString());
+  constructor() {
+    // Cria a tabela assim que o Gestor é instanciado
+    db.execSync(sqlCreate);
   }
 
-  public async adicionar(produto: Produto) {
-    await salvarProduto(produto.codigo.toString(), produto);
+  public async remover(chave: number): Promise<void> {
+    db.runSync(sqlDelete, [chave]);
   }
 
-  public async obterTodos(): Promise<Array<Produto>> {
-    const lista: Array<Produto> = await obterProdutos();
-    return lista;
+  public async adicionar(produto: Produto): Promise<void> {
+    db.runSync(sqlInsert, [
+      produto.codigo,
+      produto.nome,
+      produto.quantidade,
+    ]);
+  }
+
+  public async obterTodos(): Promise<Produto[]> {
+    const rows = db.getAllSync(sqlSelect) as Array<{
+      CODIGO: number;
+      NOME: string;
+      QUANTIDADE: number;
+    }>;
+
+    return rows.map(
+      (linha) => new Produto(linha.CODIGO, linha.NOME, linha.QUANTIDADE)
+    );
   }
 }
 
